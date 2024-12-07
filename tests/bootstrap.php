@@ -1,44 +1,55 @@
 <?php
+declare(strict_types=1);
+
 /**
- * Test suite bootstrap.
+ * Test suite bootstrap for Scheduler.
  *
- * @copyright     Cake Software Foundation, Inc. (http://cakefoundation.org)
- * @license       http://www.opensource.org/licenses/mit-license.php MIT License
+ * This function is used to find the location of CakePHP whether CakePHP
+ * has been installed as a dependency of the plugin, or the plugin is itself
+ * installed as a dependency of an application.
  */
-use Cake\Core\Configure;
-use Cake\Datasource\ConnectionManager;
+$findRoot = function ($root) {
+    do {
+        $lastRoot = $root;
+        $root = dirname($root);
+        if (is_dir($root . '/vendor/cakephp/cakephp')) {
+            return $root;
+        }
+    } while ($root !== $lastRoot);
 
-require_once 'vendor/autoload.php';
+    throw new Exception('Cannot find the root of the application, unable to run tests');
+};
+$root = $findRoot(__FILE__);
+unset($findRoot);
 
-// Path constants to a few helpful things.
-define('ROOT', dirname(__DIR__) . DS);
-define('CAKE_CORE_INCLUDE_PATH', ROOT . 'vendor' . DS . 'cakephp' . DS . 'cakephp');
-define('CORE_PATH', ROOT . 'vendor' . DS . 'cakephp' . DS . 'cakephp' . DS);
-define('CAKE', CORE_PATH . 'src' . DS);
-define('TESTS', ROOT . 'tests');
-define('APP', ROOT . 'tests' . DS . 'TestApp' . DS);
-define('APP_DIR', 'TestApp');
-define('WEBROOT_DIR', 'webroot');
-define('TMP', APP . 'tmp' . DS);
-define('CONFIG', APP . 'config' . DS);
-define('WWW_ROOT', APP);
-define('CACHE', TMP);
-define('LOGS', TMP);
+chdir($root);
 
-require_once CORE_PATH . 'config/bootstrap.php';
+require_once $root . '/vendor/autoload.php';
 
-date_default_timezone_set('UTC');
-mb_internal_encoding('UTF-8');
+/**
+ * Define fallback values for required constants and configuration.
+ * To customize constants and configuration remove this require
+ * and define the data required by your plugin here.
+ */
+require_once $root . '/vendor/cakephp/cakephp/tests/bootstrap.php';
 
-Configure::write('debug', true);
-Configure::write('App', [
-    'namespace' => 'TestApp',
-    'dir' => 'src'
-]);
-ConnectionManager::config('default', [
-    'className' => 'Cake\Database\Connection',
-    'driver' => 'Cake\Database\Driver\Sqlite',
-    'database' => APP . 'data.db',
-]);
+if (file_exists($root . '/config/bootstrap.php')) {
+    require $root . '/config/bootstrap.php';
 
-//Plugin::load('Scheduler', ['path' => ROOT]);
+    return;
+}
+
+/**
+ * Load schema from a SQL dump file.
+ *
+ * If your plugin does not use database fixtures you can
+ * safely delete this.
+ *
+ * If you want to support multiple databases, consider
+ * using migrations to provide schema for your plugin,
+ * and using \Migrations\TestSuite\Migrator to load schema.
+ */
+use Cake\TestSuite\Fixture\SchemaLoader;
+
+// Load a schema dump file.
+(new SchemaLoader())->loadSqlFiles('tests/schema.sql', 'test');
