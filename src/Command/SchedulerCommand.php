@@ -57,12 +57,12 @@ class SchedulerCommand extends Command
         }
 
         $strategyClass = $config['strategy'];
-        if (!class_exists($strategyClass)) {
+        if (!class_exists($strategyClass) && is_subclass_of($strategyClass, StrategyInterface::class)) {
             $io->err(__('Strategy class `{0}` not found!', $strategyClass));
             return Command::CODE_ERROR;
         }
 
-        $this->storeStrategy = new $strategyClass($config['options']);
+        $this->storeStrategy = new $strategyClass($config['options'] ?? []);
 
         //$jobs = Configure::read('Scheduler.jobs') ?? [];
         $jobs = Configure::read('SchedulerShell.jobs') ?? []; // @todo recheck this later
