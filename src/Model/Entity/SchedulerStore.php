@@ -36,5 +36,13 @@ class SchedulerStore extends Entity
         'lastRun' => true,
         'lastResult' => true,
         'paused' => true,
+        'lastGenDate' => true,
     ];
+
+    protected $_virtual = ['pass_array'];
+
+    protected function _getPassArray(): array
+    {
+        return json_decode($this->pass ?? '[]', true) ?? [];
+    }
 }

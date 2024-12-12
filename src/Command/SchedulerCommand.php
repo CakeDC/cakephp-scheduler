@@ -37,19 +37,6 @@ class SchedulerCommand extends Command
      */
     public function execute(Arguments $args, ConsoleIo $io)
     {
-        // @todo remove later
-        Configure::write('SchedulerShell.jobs', [
-            'DumbJob' => [
-                'interval' => 'next day 18:00',
-                'task' => \App\Command\SchedulerTestCommand::class,
-                'pass' => [
-                    'arg1' => 'value1',
-                    'arg2' => 'value2',
-                ],
-                'paused' => false,
-            ],
-        ]);
-
         $config = Configure::read('Scheduler.storeData');
         if (!$config) {
             $io->err(__('No configuration found for Scheduler!'));
@@ -65,6 +52,7 @@ class SchedulerCommand extends Command
         $this->storeStrategy = new $strategyClass($config['options'] ?? []);
 
         //$jobs = Configure::read('Scheduler.jobs') ?? [];
+        // @todo move this to db
         $jobs = Configure::read('SchedulerShell.jobs') ?? []; // @todo recheck this later
         if (empty($jobs)) {
             $io->err(__('No jobs configured!'));
@@ -122,7 +110,13 @@ class SchedulerCommand extends Command
                     $io->out(__('Running job: {0}', $name));
                     $io->hr();
 
-                    $store[$name]['lastResult'] = $this->executeCommand($job['task'], $job['pass'] ?? [], $io) ?? 0;
+                    $executeJob = Configure::read('Scheduler.executeJob', null);
+                    if (!empty($executeJob) && is_callable($executeJob)) {
+                        $store[$name]['lastResult'] = $executeJob($name, $job);
+                    } else {
+                        $store[$name]['lastResult'] = $this->executeCommand($job['task'], $job['pass'] ?? [], $io) ?? 0;
+                    }
+
                     $store[$name]['lastRun'] = $now->format('Y-m-d H:i:s');
                 } else {
                     $io->out(__('Skipping job: {0} (next run: {1})', $name, $lastRun->format('Y-m-d H:i:s')));
