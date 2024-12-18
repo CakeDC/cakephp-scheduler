@@ -29,14 +29,7 @@ class SchedulerStore extends Entity
      * @var array<string, bool>
      */
     protected $_accessible = [
-        'name' => true,
-        'interval_job' => true,
-        'task' => true,
-        'pass' => true,
-        'lastRun' => true,
-        'lastResult' => true,
-        'paused' => true,
-        'lastGenDate' => true,
+        '*' => true,
     ];
 
     protected $_virtual = ['pass_array'];

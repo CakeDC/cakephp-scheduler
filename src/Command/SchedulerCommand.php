@@ -11,6 +11,7 @@ use Cake\Console\ConsoleOptionParser;
 use Cake\Core\Configure;
 use DateTime;
 use DateInterval;
+use Scheduler\StoreData\SchedulerStoreData;
 use Scheduler\StoreData\StrategyInterface;
 
 /**
@@ -37,30 +38,23 @@ class SchedulerCommand extends Command
      */
     public function execute(Arguments $args, ConsoleIo $io)
     {
-        $config = Configure::read('Scheduler.storeData');
-        if (!$config) {
-            $io->err(__('No configuration found for Scheduler!'));
+        try {
+            $this->storeStrategy = SchedulerStoreData::get();
+            //$jobs = Configure::read('Scheduler.jobs') ?? [];
+            // @todo move this to db
+            $jobs = Configure::read('SchedulerShell.jobs') ?? []; // @todo recheck this later
+            if (empty($jobs)) {
+                throw new \RuntimeException(__('No jobs configured!'));
+            }
+
+            $this->runJobs($jobs ?? [], $io);
+
+            return Command::CODE_SUCCESS;
+        } catch (\Exception $e) {
+            $io->err($e->getMessage());
+
             return Command::CODE_ERROR;
         }
-
-        $strategyClass = $config['strategy'];
-        if (!class_exists($strategyClass) && is_subclass_of($strategyClass, StrategyInterface::class)) {
-            $io->err(__('Strategy class `{0}` not found!', $strategyClass));
-            return Command::CODE_ERROR;
-        }
-
-        $this->storeStrategy = new $strategyClass($config['options'] ?? []);
-
-        //$jobs = Configure::read('Scheduler.jobs') ?? [];
-        // @todo move this to db
-        $jobs = Configure::read('SchedulerShell.jobs') ?? []; // @todo recheck this later
-        if (empty($jobs)) {
-            $io->err(__('No jobs configured!'));
-            return Command::CODE_ERROR;
-        }
-
-        $this->runJobs($jobs ?? [], $io);
-        return Command::CODE_SUCCESS;
     }
 
     /**
@@ -106,7 +100,6 @@ class SchedulerCommand extends Command
                 }
 
                 if ($lastRun <= $now) {
-                    $io->hr();
                     $io->out(__('Running job: {0}', $name));
                     $io->hr();
 

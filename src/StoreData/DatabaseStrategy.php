@@ -58,9 +58,16 @@ class DatabaseStrategy implements StrategyInterface
                     [$this->SchedulerStore->aliasField($primaryKey) . ' IS' => $row[$primaryKey]],
                 ]])
                 ->first();
-            $row['pass'] = json_encode($row['pass']);
-            $row['name'] = $key;
-            $row['interval_job'] = $row['interval'];
+
+            if (!empty($row['pass'])) {
+                $row['pass'] = json_encode($row['pass']);
+            }
+            if (empty($row['name'])) {
+                $row['name'] = $key;
+            }
+            if (empty($row['interval_job'])) {
+                $row['interval_job'] = $row['interval'];
+            }
             if ($entity) {
                 $entity = $this->SchedulerStore->patchEntity($entity, $row);
             } else {
