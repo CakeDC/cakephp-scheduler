@@ -101,7 +101,6 @@ class SchedulerCommand extends Command
 
                 if ($lastRun <= $now) {
                     $io->out(__('Running job: {0}', $name));
-                    $io->hr();
 
                     $executeJob = Configure::read('Scheduler.executeJob', null);
                     if (!empty($executeJob) && is_callable($executeJob)) {

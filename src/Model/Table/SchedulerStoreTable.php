@@ -70,12 +70,6 @@ class SchedulerStoreTable extends Table
             ->notEmptyString('task');
 
         $validator
-            ->scalar('pass')
-            ->maxLength('pass', 255)
-            ->requirePresence('pass', 'create')
-            ->notEmptyString('pass');
-
-        $validator
             ->dateTime('lastRun')
             ->requirePresence('lastRun', 'create')
             ->notEmptyDateTime('lastRun');
@@ -97,7 +91,7 @@ class SchedulerStoreTable extends Table
         return $query->formatResults(function ($results) {
             return $results->combine('name', function ($row) {
                 $row = $row->toArray();
-                $row['pass'] = json_decode($row['pass'], true);
+                $row['pass'] = json_decode($row['pass'] ?? '', true);
                 $row['lastRun'] = $row['lastRun']?->format('Y-m-d H:i:s') ?? null;
                 $row['interval'] = $row['interval_job'];
                 unset($row['interval_job']);
