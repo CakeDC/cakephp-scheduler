@@ -40,7 +40,6 @@ class SchedulerCommand extends Command
     {
         try {
             $this->storeStrategy = SchedulerStoreData::get();
-            //$jobs = Configure::read('Scheduler.jobs') ?? [];
             // @todo move this to db
             $jobs = Configure::read('SchedulerShell.jobs') ?? []; // @todo recheck this later
             if (empty($jobs)) {
@@ -76,14 +75,14 @@ class SchedulerCommand extends Command
             foreach ($jobs as $name => $job) {
                 $now = new DateTime();
 
-                if ($job['paused'] ?? false) {
-                    $io->out(__('Skipping job: {0} (paused)', $name));
-                    continue;
-                }
-
                 if (!isset($store[$name])) {
                     $store[$name] = $job;
                     $store[$name]['lastRun'] = null;
+                }
+
+                if ($store[$name]['paused'] ?? false) {
+                    $io->out(__('Skipping job: {0} (paused)', $name));
+                    continue;
                 }
 
                 $lastRun = $store[$name]['lastRun'];
