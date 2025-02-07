@@ -68,57 +68,71 @@ class SchedulerCommand extends Command
             return;
         }
 
+        $this->storeStrategy->acquireLock();
+        $store = $this->storeStrategy->read();
+
+        foreach ($jobs as $name => $job) {
+            $store = $this->runJob($store, $name, $job, $io);
+        }
+
+        $this->storeStrategy->write($store);
+        $this->storeStrategy->releaseLock();
+    }
+
+    /**
+     * @param array $store
+     * @param string $name
+     * @param array $job
+     * @param ConsoleIo $io
+     * @return void
+     */
+    private function runJob(array $store, string $name, array $job, ConsoleIo $io)
+    {
         try {
-            $this->storeStrategy->acquireLock();
-            $store = $this->storeStrategy->read();
+            $now = new DateTime();
 
-            foreach ($jobs as $name => $job) {
-                $now = new DateTime();
-
-                if (!isset($store[$name])) {
-                    $store[$name] = $job;
-                    $store[$name]['lastRun'] = null;
-                }
-
-                if ($store[$name]['paused'] ?? false) {
-                    $io->out(__('Skipping job: {0} (paused)', $name));
-                    continue;
-                }
-
-                $lastRun = $store[$name]['lastRun'];
-                if ($lastRun === null) {
-                    $lastRun = new DateTime('1969-01-01 00:00:00');
-                } else {
-                    $lastRun = new DateTime($lastRun);
-                }
-
-                if (substr($job['interval'], 0, 1) === 'P') {
-                    $lastRun->add(new DateInterval($job['interval']));
-                } else {
-                    $lastRun->modify($job['interval']);
-                }
-
-                if ($lastRun <= $now) {
-                    $io->out(__('Running job: {0}', $name));
-
-                    $executeJob = Configure::read('Scheduler.executeJob', null);
-                    if (!empty($executeJob) && is_callable($executeJob)) {
-                        $store[$name]['lastResult'] = $executeJob($name, $job);
-                    } else {
-                        $store[$name]['lastResult'] = $this->executeCommand($job['task'], $job['pass'] ?? [], $io) ?? 0;
-                    }
-
-                    $store[$name]['lastRun'] = $now->format('Y-m-d H:i:s');
-                } else {
-                    $io->out(__('Skipping job: {0} (next run: {1})', $name, $lastRun->format('Y-m-d H:i:s')));
-                }
+            if (!isset($store[$name])) {
+                $store[$name] = $job;
+                $store[$name]['lastRun'] = null;
             }
 
-            $this->storeStrategy->write($store);
+            if ($store[$name]['paused'] ?? false) {
+                $io->out(__('Skipping job: {0} (paused)', $name));
+
+                return;
+            }
+
+            $lastRun = $store[$name]['lastRun'];
+            if ($lastRun === null) {
+                $lastRun = new DateTime('1969-01-01 00:00:00');
+            } else {
+                $lastRun = new DateTime($lastRun);
+            }
+
+            if (substr($job['interval'], 0, 1) === 'P') {
+                $lastRun->add(new DateInterval($job['interval']));
+            } else {
+                $lastRun->modify($job['interval']);
+            }
+
+            if ($lastRun <= $now) {
+                $io->out(__('Running job: {0}', $name));
+
+                $executeJob = Configure::read('Scheduler.executeJob', null);
+                if (!empty($executeJob) && is_callable($executeJob)) {
+                    $store[$name]['lastResult'] = $executeJob($name, $job);
+                } else {
+                    $store[$name]['lastResult'] = $this->executeCommand($job['task'], $job['pass'] ?? [], $io) ?? 0;
+                }
+
+                $store[$name]['lastRun'] = $now->format('Y-m-d H:i:s');
+            } else {
+                $io->out(__('Skipping job: {0} (next run: {1})', $name, $lastRun->format('Y-m-d H:i:s')));
+            }
         } catch (\Exception $e) {
-            $io->err($e->getMessage());
-        } finally {
-            $this->storeStrategy->releaseLock();
+            $io->out(__('Error on job {0}: {1}', $name, $e->getMessage()));
         }
+
+        return $store;
     }
 }
